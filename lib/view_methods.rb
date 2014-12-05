@@ -1,8 +1,8 @@
 module SolveMedia
-  
-  # Methods within this module will be included in ActionView::Base 
+
+  # Methods within this module will be included in ActionView::Base
   module ViewMethods
-    
+
     # Returns the HTML for a Solve Media puzzle
     #
     # Options:
@@ -18,21 +18,32 @@ module SolveMedia
                   :config   => SolveMedia::CONFIG,
                   :use_SSL  => false
                   }.merge(options)
-      
+
       if options[:use_SSL]
         server = SolveMedia::API_SECURE_SERVER
       else
         server = SolveMedia::API_SERVER
       end
-      
+
       if options[:ajax]
         aopts = {:theme => options[:theme], :lang => options[:lang], :size => options[:size]}
         aopts[:tabindex] = options[:tabindex] if options[:tabindex]
 
-        output = javascript_include_tag("#{server}/papi/challenge.ajax")
-        js = <<-EOF          
+        setup_js = <<-EOF
+          (function(d, t) {
+            var g = d.createElement(t);
+            var s = d.getElementsByTagName(t)[0];
+            g.src = "#{server}/papi/challenge.ajax";
+            g.type = "text/javascript";
+            s.parentNode.insertBefore(g, s);
+          })(document, 'script');
+        EOF
+
+        output = javascript_tag(setup_js)
+
+        js = <<-EOF
           function loadSolveMediaCaptcha(){
-            if(window.ACPuzzle) { 
+            if(window.ACPuzzle) {
               ACPuzzle.create(#{options[:config]['C_KEY'].to_json}, #{options[:ajax_div].to_json}, #{aopts.to_json});
             } else {
               setTimeout(loadSolveMediaCaptcha, 50);
@@ -45,7 +56,7 @@ module SolveMedia
         return output
       else
         output = ""
-      
+
         output << %{<script type="text/javascript">\n}
         output << "	var ACPuzzleOptions = {\n"
         output << %{			tabindex:   #{options[:tabindex]},\n} unless options[:tabindex].nil?
@@ -54,7 +65,7 @@ module SolveMedia
         output << %{			size:	    '#{options[:size]}'\n}
         output << "	};\n"
         output << %{</script>\n}
-      
+
         output << %{<script type="text/javascript"}
         output << %{   src="#{server}/papi/challenge.script?k=#{options[:config]['C_KEY']}">}
         output << %{</script>}
